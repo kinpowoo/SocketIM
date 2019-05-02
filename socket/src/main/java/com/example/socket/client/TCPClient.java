@@ -1,71 +1,53 @@
 package com.example.socket.client;
 
 import com.example.socket.client.bean.DeviceInfo;
+import com.example.socket.clink.net.qiujuer.clink.core.Connector;
 import com.example.socket.clink.net.qiujuer.clink.utils.CloseUtils;
-import com.example.socket.server.TCPServer;
-import com.example.socket.server.handle.ClientHandle;
-
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
-import java.io.PrintStream;
 import java.net.Inet4Address;
 import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.net.SocketTimeoutException;
+import java.nio.channels.SocketChannel;
 
-public class TCPClient {
-    private final Socket socket;
-    private final ReadHandler readHandler;
-    private final PrintStream printStream;
+public class TCPClient extends Connector {
 
-    private TCPClient(Socket socket,ReadHandler readHandler) throws IOException{
-        this.socket = socket;
-        this.readHandler = readHandler;
-        this.printStream = new PrintStream(socket.getOutputStream());
+    private TCPClient(SocketChannel socketChannel) throws IOException{
+        setup(socketChannel);
     }
 
-
     public static TCPClient startWith(DeviceInfo deviceInfo) throws IOException{
-        Socket s = new Socket();
-        s.setSoTimeout(3000);        // SET TIME OUT DURATION
+        SocketChannel s = SocketChannel.open();
 
         //连接本地，端口2000，超时时间3秒
         s.connect(new InetSocketAddress(Inet4Address.getByName(deviceInfo.getAddress()),
-                deviceInfo.getPort()),3000);
+                deviceInfo.getPort()));
 
         System.out.println("客户端已连接到服务器~");
-        System.out.printf("客户端address:%s, port:%d\n",s.getLocalAddress().getHostAddress(),s.getLocalPort());
-        System.out.printf("服务端address:%s, port:%d\n",s.getInetAddress().getHostAddress(),s.getPort());
+        System.out.println("客户端信息"+s.getLocalAddress().toString());
+        System.out.println("服务端信息"+s.getRemoteAddress().toString());
         try {
-            ReadHandler readHandler = new ReadHandler(s.getInputStream());
-            readHandler.start();
-            return new TCPClient(s,readHandler);
+            return new TCPClient(s);
         }catch (IOException e){
-            System.out.println("socket读写操作出现异常");
+            System.out.println("连接异常");
             CloseUtils.close(s);
         }
         return null;
     }
 
-
-    //发送信息
-    public void send(String msg){
-        printStream.println(msg);
+    @Override
+    public void onChannelClosed(SocketChannel channel) {
+        super.onChannelClosed(channel);
+        System.out.println("连接已断开，无法读取数据");
     }
 
     //退出客户端
     public void exit(){
-        //退出读线程，关闭打印流和socket
-        readHandler.exit();
-        CloseUtils.close(printStream);
-        CloseUtils.close(socket);
+        //退出读线程，
+        CloseUtils.close(this);
     }
 
 
 
+    /**
     //读取线程
     static class ReadHandler extends Thread{
         private boolean done = false;
@@ -115,5 +97,6 @@ public class TCPClient {
             CloseUtils.close(inputStream);
         }
     }
+        */
 
 }

@@ -1,6 +1,10 @@
 package com.example.socket.clink.net.qiujuer.clink.core;
 
+import com.example.socket.clink.net.qiujuer.clink.box.StringReceivePacket;
+import com.example.socket.clink.net.qiujuer.clink.box.StringSendPacket;
 import com.example.socket.clink.net.qiujuer.clink.impl.SocketChannelAdapter;
+import com.example.socket.clink.net.qiujuer.clink.impl.async.AsyncReceiveDispatcher;
+import com.example.socket.clink.net.qiujuer.clink.impl.async.AsyncSendDispatcher;
 
 import java.io.Closeable;
 import java.io.IOException;
@@ -13,6 +17,8 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     private SocketChannel socketChannel;
     private Sender sender;
     private Receiver receiver;
+    private SendDispatcher sendDispatcher;
+    private ReceiveDispatcher receiveDispatcher;
 
     public void setup(SocketChannel socketChannel) throws IOException{
         this.socketChannel = socketChannel;
@@ -23,25 +29,27 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
         this.sender = adapter;
         this.receiver = adapter;
 
-        //开始读取数据
-        readNextMessage();
+        sendDispatcher = new AsyncSendDispatcher(sender);
+        receiveDispatcher = new AsyncReceiveDispatcher(receiver,receivePacketCallback);
+
+        //启动接收
+        receiveDispatcher.start();
+    }
+
+    public void send(String msg){
+        SendPacket packet = new StringSendPacket(msg);
+        sendDispatcher.send(packet);
     }
 
 
-    private void readNextMessage(){
-        if(receiver!=null){
-            try {
-                receiver.receiveAsync(echoReceiveListener);
-            } catch (IOException e) {
-                e.printStackTrace();
-                System.out.println("接收数据异常："+e.getMessage());
-            }
-        }
-    }
 
     @Override
     public void close() throws IOException {
-
+        sendDispatcher.close();
+        receiveDispatcher.close();
+        sender.close();
+        receiver.close();
+        socketChannel.close();
     }
 
     @Override
@@ -49,23 +57,24 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
 
     }
 
-    private IOArgs.IOArgsEventListener echoReceiveListener = new IOArgs.IOArgsEventListener() {
-        @Override
-        public void onStarted(IOArgs args) {
-
-        }
-
-        @Override
-        public void onCompleted(IOArgs args) {
-            //打印
-            onReceiveNewMessage(args.bufferToString());
-            //读取下一条数据
-            readNextMessage();
-        }
-    };
 
     protected void onReceiveNewMessage(String str){
         System.out.println(key.toString()+":"+str);
     }
+
+
+    /**
+     * 接收消息完成回调
+     */
+    private ReceiveDispatcher.ReceivePacketCallback receivePacketCallback =
+            new ReceiveDispatcher.ReceivePacketCallback() {
+        @Override
+        public void onReceivePacketCompleted(ReceivePacket packet) {
+            if(packet instanceof StringReceivePacket){
+                String msg = ((StringReceivePacket)packet).string();
+                onReceiveNewMessage(msg);
+            }
+        }
+    };
 
 }

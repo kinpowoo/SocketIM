@@ -193,10 +193,13 @@ public class IoSelectorProvider implements IOProvider {
                     //这时因为该key已经被注册过，所以不需要重复注册，只需要为
                     //这个key重新添加 ops事件 关注即可
                     key = channel.keyFor(selector);
-                    key.interestOps(key.interestOps() | ops);
+                    if(key!=null) {
+                        key.interestOps(key.interestOps() | ops);
+                    }
                 }
                 if(key == null) {
                     //注册事件得到key
+                    System.out.println("注册"+ops+"事件");
                     key = channel.register(selector, ops);
                     map.put(key,runnable);
                 }

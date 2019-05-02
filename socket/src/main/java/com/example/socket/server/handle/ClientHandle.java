@@ -3,81 +3,37 @@ package com.example.socket.server.handle;
 import com.example.socket.clink.net.qiujuer.clink.core.Connector;
 import com.example.socket.clink.net.qiujuer.clink.utils.CloseUtils;
 import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Iterator;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-public class ClientHandle {
 
-    private final SocketChannel client;
-    private final Connector connector;   //读操作connector
-
-    private final ClientWriteHandler writeHandler;  //输出线程对象
+public class ClientHandle extends Connector{
     private final ClientHandleCallback callback;
     private final String clientInfo;
 
     public ClientHandle(SocketChannel client, final ClientHandleCallback callback) throws IOException {
-        this.client= client;
-
-        /**
-        //设置非阻塞模式
-        client.configureBlocking(false);
-        Selector readSelector = Selector.open();
-        client.register(readSelector,SelectionKey.OP_READ);
-        this.readHandler = new ClientReadHandler(readSelector);
-        */
-
-        connector = new Connector(){
-            @Override
-            public void onChannelClosed(SocketChannel channel) {
-                super.onChannelClosed(channel);
-                exitBySelf();
-            }
-
-            @Override
-            protected void onReceiveNewMessage(String str) {
-                super.onReceiveNewMessage(str);
-                callback.onNewMessageArrive(ClientHandle.this,str);
-            }
-        };
-        connector.setup(client);
-
-
-        Selector writeSelector = Selector.open();
-        client.register(writeSelector,SelectionKey.OP_WRITE);
-        this.writeHandler = new ClientWriteHandler(writeSelector);
-
+        setup(client);
         this.callback = callback;
         this.clientInfo = client.getRemoteAddress().toString();
+
         //打印新连接的客户端信息
         System.out.println("新连入的客户端:"+clientInfo);
     }
 
-    //直接将读取线程启动
-    public void readAndPrint(){
-
-    }
-
-
     public void exit(){
-        CloseUtils.close(connector);
-        writeHandler.exit();
-        CloseUtils.close(client);
+        CloseUtils.close(this);
         System.out.printf("客户端address:%s 已退出！\n",clientInfo);
     }
 
-    public String getClientInfo(){
-        return clientInfo;
+    @Override
+    public void onChannelClosed(SocketChannel channel) {
+        super.onChannelClosed(channel);
+        exitBySelf();
     }
 
-
-    //用写线程发送数据
-    public void send(String str){
-        writeHandler.send(str);
+    @Override
+    protected void onReceiveNewMessage(String str) {
+        super.onReceiveNewMessage(str);
+        callback.onNewMessageArrive(this,str);
     }
 
     //自身出异常而被迫关闭
@@ -167,9 +123,6 @@ public class ClientHandle {
             CloseUtils.close(selector);
         }
     }
-*/
-
-
 
     //输出线程
     class ClientWriteHandler{
@@ -238,4 +191,7 @@ public class ClientHandle {
             }
         }
     }
+     */
+
+
 }

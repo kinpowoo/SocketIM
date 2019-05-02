@@ -1,6 +1,8 @@
 package com.example.socket.client;
 
 import com.example.socket.client.bean.DeviceInfo;
+import com.example.socket.clink.net.qiujuer.clink.core.IOContext;
+import com.example.socket.clink.net.qiujuer.clink.impl.IoSelectorProvider;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -9,7 +11,11 @@ import java.io.InputStreamReader;
 
 public class Client {
 
-    public static void main(String[] args){
+    public static void main(String[] args) throws IOException {
+        IOContext.setup()
+                .ioProvider(new IoSelectorProvider())
+                .start();
+
         //创建搜索者对象，并指定超时时间，如果在指定时间内没有设备响应，结束
         DeviceInfo info = UDPSearcher.searchServer(10000);
         System.out.println("Server:"+info);
@@ -30,6 +36,8 @@ public class Client {
                 }
             }
         }
+
+        IOContext.get().close();
     }
 
 
@@ -46,6 +54,9 @@ public class Client {
             System.out.print(">>:");
             String c2s = bis.readLine();
             //用tcpClient实例发送数据
+            client.send(c2s);
+            client.send(c2s);
+            client.send(c2s);
             client.send(c2s);
 
             if("00bye00".equalsIgnoreCase(c2s)){
