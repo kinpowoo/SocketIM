@@ -4,6 +4,9 @@ import com.example.socket.clink.net.qiujuer.clink.core.IOProvider;
 import com.example.socket.clink.net.qiujuer.clink.utils.CloseUtils;
 
 import java.io.IOException;
+import java.nio.channels.CancelledKeyException;
+import java.nio.channels.ClosedChannelException;
+import java.nio.channels.ClosedSelectorException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
@@ -120,8 +123,9 @@ public class IoSelectorProvider implements IOProvider {
 
     @Override
     public boolean registerInput(SocketChannel channel, HandleInputCallback callback) {
-        return register(channel,readSelector,SelectionKey.OP_READ,inRegInput,
-                inputCallbackMap, callback) !=null;
+        SelectionKey key = register(channel,readSelector,SelectionKey.OP_READ,inRegInput,
+                inputCallbackMap, callback);
+        return key != null;
     }
 
     @Override
@@ -132,12 +136,12 @@ public class IoSelectorProvider implements IOProvider {
 
     @Override
     public void unregisterInput(SocketChannel channel) {
-        unregister(channel,readSelector,inputCallbackMap);
+        unregister(channel,readSelector,inputCallbackMap,inRegInput);
     }
 
     @Override
     public void unregisterOutput(SocketChannel channel) {
-        unregister(channel,writeSelector,outputCallbackMap);
+        unregister(channel,writeSelector,outputCallbackMap,inRegOutput);
     }
 
     @Override
@@ -193,18 +197,19 @@ public class IoSelectorProvider implements IOProvider {
                     //这时因为该key已经被注册过，所以不需要重复注册，只需要为
                     //这个key重新添加 ops事件 关注即可
                     key = channel.keyFor(selector);
-                    if(key!=null) {
-                        key.interestOps(key.interestOps() | ops);
+                    if (key != null) {
+                        key.interestOps(key.readyOps() | ops);
                     }
                 }
                 if(key == null) {
                     //注册事件得到key
-                    System.out.println("注册"+ops+"事件");
                     key = channel.register(selector, ops);
                     map.put(key,runnable);
                 }
                 return key;
-            }catch (IOException e){
+            }catch (ClosedChannelException
+                    | CancelledKeyException
+                    | ClosedSelectorException e){
                 return null;
             } finally {
                 //解除锁定状态
@@ -222,20 +227,33 @@ public class IoSelectorProvider implements IOProvider {
 
 
     //反注册事件方法
-    private void unregister(SocketChannel channel,Selector selector, HashMap<SelectionKey,Runnable> map){
-        if(channel.isRegistered()){
-            SelectionKey key = channel.keyFor(selector);
-            if(key!=null){
-                //取消监听，这里的 cancel 是取消key中所有关注的事件，包括Readable,Writable事件
-                //因为我们是读写的事件分别用两个 selector 分开管理，所以可以这样写，如果你将读写
-                //事件注册到了同一个 Selector中时，用 key.cancel() 会将两个事件同时取消监听，所以
-                //在注册到同一selector时，用 selectionKey.interestOps(selectionKey.interestOps() & ~ops);比较合适，
-                //因为它只取消了指定事件的监听
-                key.cancel();
-                map.remove(key);
-                //让selector的 select()方法立即返回，进行下一轮循环，
-                //这样被 cancel 的key将不再被遍历
-                selector.wakeup();
+    private void unregister(SocketChannel channel,Selector selector, HashMap<SelectionKey,Runnable> map,
+                            AtomicBoolean locker){
+        synchronized (locker) {
+            locker.set(true);
+            selector.wakeup();
+            try {
+                if (channel.isRegistered()) {
+                    SelectionKey key = channel.keyFor(selector);
+                    if (key != null) {
+                        //取消监听，这里的 cancel 是取消key中所有关注的事件，包括Readable,Writable事件
+                        //因为我们是读写的事件分别用两个 selector 分开管理，所以可以这样写，如果你将读写
+                        //事件注册到了同一个 Selector中时，用 key.cancel() 会将两个事件同时取消监听，所以
+                        //在注册到同一selector时，用 selectionKey.interestOps(selectionKey.interestOps() & ~ops);比较合适，
+                        //因为它只取消了指定事件的监听
+                        key.cancel();
+                        map.remove(key);
+                        //让selector的 select()方法立即返回，进行下一轮循环，
+                        //这样被 cancel 的key将不再被遍历
+                        selector.wakeup();
+                    }
+                }
+            }finally {
+                locker.set(false);
+                try {
+                    locker.notifyAll();
+                } catch (Exception ignored) {
+                }
             }
         }
     }

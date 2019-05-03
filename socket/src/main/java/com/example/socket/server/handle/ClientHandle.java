@@ -10,10 +10,10 @@ public class ClientHandle extends Connector{
     private final ClientHandleCallback callback;
     private final String clientInfo;
 
-    public ClientHandle(SocketChannel client, final ClientHandleCallback callback) throws IOException {
-        setup(client);
+    public ClientHandle(SocketChannel socketChannel, final ClientHandleCallback callback) throws IOException {
+        setup(socketChannel);
         this.callback = callback;
-        this.clientInfo = client.getRemoteAddress().toString();
+        this.clientInfo = socketChannel.getRemoteAddress().toString();
 
         //打印新连接的客户端信息
         System.out.println("新连入的客户端:"+clientInfo);
@@ -39,9 +39,7 @@ public class ClientHandle extends Connector{
     //自身出异常而被迫关闭
     private void exitBySelf(){
         exit();
-        if(callback!=null){
-            callback.onSelfClosed(this);
-        }
+        callback.onSelfClosed(this);
     }
 
 

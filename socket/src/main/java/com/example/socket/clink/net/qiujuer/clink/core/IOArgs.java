@@ -61,6 +61,8 @@ public class IOArgs {
     public void startWriting(){
         //重置所有操作
         buffer.clear();
+        //自定义容纳区间
+        buffer.limit(limit);
     }
 
     public void finishWriting(){

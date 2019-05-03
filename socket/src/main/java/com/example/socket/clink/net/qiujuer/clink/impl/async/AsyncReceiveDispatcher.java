@@ -21,7 +21,7 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
     private final ReceivePacketCallback callback;
 
     private IOArgs ioArgs = new IOArgs();
-    private ReceivePacket packetTemp;
+    private ReceivePacket packetTemp;   //正在接收的packet
     private byte[] buffer;
     private int total;
     private int position;
@@ -52,18 +52,18 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
         }
     }
 
-    private void closeAndNotify(){
-        CloseUtils.close(this);
-    }
-
 
     @Override
     public void stop() {
 
     }
 
+    private void closeAndNotify(){
+        CloseUtils.close(this);
+    }
+
     @Override
-    public void close() throws IOException {
+    public void close() {
         if(isClosed.compareAndSet(false,true)){
             ReceivePacket packet = this.packetTemp;
             if(packet!=null){
@@ -74,21 +74,10 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
     }
 
 
-    /**
-     * 完成数据接收操作
-     */
-    private void completePacket(){
-        ReceivePacket packet = this.packetTemp;
-        CloseUtils.close(packet);
-        callback.onReceivePacketCompleted(packet);
-    }
-
-
     private IOArgs.IOArgsEventListener eventListener = new IOArgs.IOArgsEventListener() {
         @Override
         public void onStarted(IOArgs args) {
-            //
-            int receiveSize;
+            int receiveSize;   //每次可以接收数据的大小
             if(packetTemp==null){
                 receiveSize = 4;
             }else{
@@ -100,6 +89,7 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
         }
         @Override
         public void onCompleted(IOArgs args) {
+            //解析一条数据
             assemblePacket(args);
             //继续接收下一条数据
             registerReceive();
@@ -114,14 +104,17 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
     private void assemblePacket(IOArgs args){
         if(packetTemp == null){
             int length = args.readLength();
+            System.out.println("当前收到的数据长度为:"+length);
             packetTemp = new StringReceivePacket(length);
             buffer = new byte[length];
             total = length;
             position = 0;
         }
+        //将args中的数据写到buffer中
         int count = args.writeTo(buffer,0);
         if(count>0) {
-            packetTemp.save(buffer, 0);
+            //将buffer数据写到packetTemp中
+            packetTemp.save(buffer, count);
             position += count;
 
             //检查是否已完成一份Packet接收
@@ -130,6 +123,15 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
                 packetTemp = null;
             }
         }
+    }
+
+    /**
+     * 完成数据接收操作
+     */
+    private void completePacket(){
+        ReceivePacket packet = this.packetTemp;
+        CloseUtils.close(packet);
+        callback.onReceivePacketCompleted(packet);
     }
 
 }

@@ -34,7 +34,7 @@ public interface IOProvider extends Closeable {
         }
 
         public final <T> T getAttach(){
-            return (T) attach;
+            return (T) this.attach;
         }
 
         protected abstract void canProviderOutput(Object attach);

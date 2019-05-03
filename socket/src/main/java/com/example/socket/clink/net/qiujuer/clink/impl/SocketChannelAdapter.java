@@ -34,7 +34,7 @@ public class SocketChannelAdapter implements Sender, Receiver, Closeable {
     @Override
     public void setReceiveListener(IOArgs.IOArgsEventListener listener){
         receiverIoEventListener = listener;
-    };
+    }
 
     @Override
     public boolean receiveAsync(IOArgs ioArgs) throws IOException{
@@ -43,7 +43,7 @@ public class SocketChannelAdapter implements Sender, Receiver, Closeable {
         }
         receiveIoArgsTemp = ioArgs;
         return ioProvider.registerInput(channel,inputCallback);
-    };
+    }
 
 
 
@@ -60,7 +60,7 @@ public class SocketChannelAdapter implements Sender, Receiver, Closeable {
 
     //关闭
     @Override
-    public void close() throws IOException {
+    public void close(){
         //判断isClose是否==false,如果是false，则将其更新为true
         if(isClosed.compareAndSet(false,true)){
             ioProvider.unregisterInput(channel);
@@ -122,10 +122,6 @@ public class SocketChannelAdapter implements Sender, Receiver, Closeable {
             } catch (IOException e) {
                 CloseUtils.close(SocketChannelAdapter.this);
             }
-
-
-
-            listener.onCompleted(null);
         }
     };
 

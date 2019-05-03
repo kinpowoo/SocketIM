@@ -22,7 +22,7 @@ public class AsyncSendDispatcher implements SendDispatcher {
 
 
     private IOArgs ioArgs = new IOArgs();
-    private SendPacket packetTemp;
+    private SendPacket packetTemp;  //当前发送的数据
     private int total;     //当前packet最大的值
     private int position;  //当前packet已发送长度
 
@@ -39,7 +39,7 @@ public class AsyncSendDispatcher implements SendDispatcher {
     public void send(SendPacket packet) {
         sendQueue.offer(packet);
         if(isSending.compareAndSet(false,true)){
-            sendNextPacket();
+             sendNextPacket();
         }
     }
 
@@ -47,7 +47,7 @@ public class AsyncSendDispatcher implements SendDispatcher {
     private SendPacket takePacket(){
         SendPacket packet = sendQueue.poll();   //取出一条数据
         if(packet !=null && packet.isCanceled()){
-            //已取消，不用发送
+            //已取消，不用发送,接着取下一条
             return takePacket();
         }
         return packet;
@@ -60,20 +60,20 @@ public class AsyncSendDispatcher implements SendDispatcher {
         if(temp!=null){
             CloseUtils.close(temp);
         }
-
         SendPacket packet = packetTemp = takePacket();
         if(packet == null){
             //没有数据可发送了,设置发送状态为false
             isSending.set(false);
             return;
         }
-        total = packet.getLength();
+        total = packet.length();
         position = 0;
         sendCurrentPacket();
     }
 
     private void sendCurrentPacket(){
         IOArgs args = ioArgs;
+        //开始清理
         args.startWriting();
 
         if(position>=total){   //表示已经发送完了一条数据
@@ -84,7 +84,7 @@ public class AsyncSendDispatcher implements SendDispatcher {
             args.writeLength(total);
         }
         byte[] bytes = packetTemp.bytes();
-        //把bytes的数据写入到IoArgs
+        //把bytes的数据写入到IoArgs,从偏移量开始
         int count = args.readFrom(bytes,position);
         position+=count;
 
@@ -94,11 +94,11 @@ public class AsyncSendDispatcher implements SendDispatcher {
         try {
             sender.sendAsync(args,eventListener);
         } catch (IOException e) {
-            closeAndNotity();
+            closeAndNotify();
         }
     }
 
-    private void closeAndNotity(){
+    private void closeAndNotify(){
         CloseUtils.close(this);
     }
 

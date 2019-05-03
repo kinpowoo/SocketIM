@@ -41,16 +41,15 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
         sendDispatcher.send(packet);
     }
 
-
-
     @Override
     public void close() throws IOException {
-        sendDispatcher.close();
         receiveDispatcher.close();
+        sendDispatcher.close();
         sender.close();
         receiver.close();
         socketChannel.close();
     }
+
 
     @Override
     public void onChannelClosed(SocketChannel channel) {
