@@ -1,23 +1,18 @@
 package com.example.socket.clink.net.qiujuer.clink.box;
 
-import com.example.socket.clink.net.qiujuer.clink.core.SendPacket;
 
-public class StringSendPacket extends SendPacket {
-    private byte[] bytes;
+public class StringSendPacket extends BytesSendPacket {
 
+    /**
+     * 字符串发送时就是Byte数组，所以直接得到Byte数组
+     */
     public StringSendPacket(String msg) {
-        this.bytes = msg.getBytes();
-        this.length = bytes.length;
+        super(msg.getBytes());
     }
 
     @Override
-    public byte[] bytes() {
-        return bytes;
+    public byte type(){
+        return TYPE_MEOMORY_STRING;
     }
 
-
-    @Override
-    public void close() {
-        super.close();
-    }
 }

@@ -2,19 +2,26 @@ package com.example.socket.client;
 
 import com.example.socket.client.bean.DeviceInfo;
 import com.example.socket.clink.net.qiujuer.clink.core.Connector;
+import com.example.socket.clink.net.qiujuer.clink.core.Packet;
+import com.example.socket.clink.net.qiujuer.clink.core.ReceivePacket;
 import com.example.socket.clink.net.qiujuer.clink.utils.CloseUtils;
+import com.example.socket.clink.net.qiujuer.clink.utils.FileUtils;
+
+import java.io.File;
 import java.io.IOException;
 import java.net.Inet4Address;
 import java.net.InetSocketAddress;
 import java.nio.channels.SocketChannel;
 
 public class TCPClient extends Connector {
+    private final File cachePath;
 
-    private TCPClient(SocketChannel socketChannel) throws IOException{
+    private TCPClient(SocketChannel socketChannel,File cachePath) throws IOException{
+        this.cachePath = cachePath;
         setup(socketChannel);
     }
 
-    public static TCPClient startWith(DeviceInfo deviceInfo) throws IOException{
+    public static TCPClient startWith(DeviceInfo deviceInfo,File cacheDir) throws IOException{
         SocketChannel s = SocketChannel.open();
 
         //连接本地，端口2000，超时时间3秒
@@ -25,7 +32,7 @@ public class TCPClient extends Connector {
         System.out.println("客户端信息"+s.getLocalAddress().toString());
         System.out.println("服务端信息"+s.getRemoteAddress().toString());
         try {
-            return new TCPClient(s);
+            return new TCPClient(s,cacheDir);
         }catch (IOException e){
             System.out.println("连接异常");
             CloseUtils.close(s);
@@ -39,13 +46,26 @@ public class TCPClient extends Connector {
         System.out.println("连接已断开，无法读取数据");
     }
 
+    @Override
+    protected File createNewReceiveFile() {
+        File tempFile = FileUtils.createRandomTemp(cachePath);
+        return tempFile;
+    }
+
     //退出客户端
     public void exit(){
         //退出读线程，
         CloseUtils.close(this);
     }
 
-
+    @Override
+    protected void onReceivedPacket(ReceivePacket packet) {
+        super.onReceivedPacket(packet);
+        if(packet.type() == Packet.TYPE_MEOMORY_STRING){
+            String string = (String) packet.entity();
+            System.out.println(key.toString()+":"+string);
+        }
+    }
 
     /**
     //读取线程

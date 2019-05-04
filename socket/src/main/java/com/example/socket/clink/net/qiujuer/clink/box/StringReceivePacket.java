@@ -1,30 +1,20 @@
 package com.example.socket.clink.net.qiujuer.clink.box;
 
-import com.example.socket.clink.net.qiujuer.clink.core.ReceivePacket;
+import java.io.ByteArrayOutputStream;
 
-public class StringReceivePacket extends ReceivePacket {
-    private byte[] buffer;   //数据缓存副本
-    private int position;    //存放数据的起始点
+public class StringReceivePacket extends AbsByteArrayReceivePacket<String> {
 
-    public StringReceivePacket(int len){
-        this.buffer = new byte[len];
-        length = len;
-    }
-
-
-
-    @Override
-    public void save(byte[] bytes, int count) {
-        System.arraycopy(bytes,0,buffer,position,count);
-        position += count;   //将起始点加上接收的长度
-    }
-
-    public String string(){
-        return new String(buffer);
+    public StringReceivePacket(long len){
+        super(len);
     }
 
     @Override
-    public void close() {
-        super.close();
+    protected String buildEntity(ByteArrayOutputStream stream) {
+        return new String(stream.toByteArray());
+    }
+
+    @Override
+    public byte type() {
+        return TYPE_MEOMORY_STRING;
     }
 }

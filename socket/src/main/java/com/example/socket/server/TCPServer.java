@@ -2,6 +2,8 @@ package com.example.socket.server;
 
 import com.example.socket.clink.net.qiujuer.clink.utils.CloseUtils;
 import com.example.socket.server.handle.ClientHandle;
+
+import java.io.File;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.ServerSocket;
@@ -18,6 +20,7 @@ import java.util.concurrent.Executors;
 
 public class TCPServer implements ClientHandle.ClientHandleCallback {
     private final int port;
+    private final File cacheDir;
     private ClientListener mListener;
     //用一个list来装载所有已连接的客户端,在多线程并发情况下需要对该list操作进行同步
     private List<ClientHandle> clients = new ArrayList<>();
@@ -27,8 +30,9 @@ public class TCPServer implements ClientHandle.ClientHandleCallback {
     private Selector selector;
     private ServerSocketChannel server;
 
-    public TCPServer(int port){
+    public TCPServer(int port,File cacheDir){
         this.port = port;
+        this.cacheDir = cacheDir;
         //转发线程池
         forwardThreadPool = Executors.newSingleThreadExecutor();
     }
@@ -146,7 +150,8 @@ public class TCPServer implements ClientHandle.ClientHandleCallback {
                             //客户端构建异步线程
                             ClientHandle clientHandle = null;
                             try {
-                                clientHandle = new ClientHandle(socketChannel,TCPServer.this);
+                                clientHandle = new ClientHandle(socketChannel,TCPServer.this,
+                                        cacheDir);
                                 //将clientHandle添加进列表,需要同步块
                                 synchronized (TCPServer.this) {
                                     clients.add(clientHandle);

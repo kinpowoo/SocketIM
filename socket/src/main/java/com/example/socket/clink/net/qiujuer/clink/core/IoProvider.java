@@ -3,7 +3,7 @@ package com.example.socket.clink.net.qiujuer.clink.core;
 import java.io.Closeable;
 import java.nio.channels.SocketChannel;
 
-public interface IOProvider extends Closeable {
+public interface IoProvider extends Closeable {
 
     boolean registerInput(SocketChannel channel,HandleInputCallback callback);
     boolean registerOutput(SocketChannel channel,HandleOutputCallback callback);
@@ -22,21 +22,12 @@ public interface IOProvider extends Closeable {
     }
 
     abstract class HandleOutputCallback implements Runnable{
-        private Object attach;
 
         @Override
         public final void run(){
-            canProviderOutput(attach);
+            canProviderOutput();
         }
 
-        public final void setAttach(Object attach){
-            this.attach = attach;
-        }
-
-        public final <T> T getAttach(){
-            return (T) this.attach;
-        }
-
-        protected abstract void canProviderOutput(Object attach);
+        protected abstract void canProviderOutput();
     }
 }

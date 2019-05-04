@@ -1,6 +1,6 @@
 package com.example.socket.clink.net.qiujuer.clink.impl;
 
-import com.example.socket.clink.net.qiujuer.clink.core.IOProvider;
+import com.example.socket.clink.net.qiujuer.clink.core.IoProvider;
 import com.example.socket.clink.net.qiujuer.clink.utils.CloseUtils;
 
 import java.io.IOException;
@@ -18,7 +18,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class IoSelectorProvider implements IOProvider {
+public class IoSelectorProvider implements IoProvider {
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
 
     //因为 readSelector 和 writeSelector 的监听工作 select()分别开辟了新线程

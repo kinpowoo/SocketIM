@@ -1,30 +1,27 @@
 package com.example.socket.clink.net.qiujuer.clink.impl.async;
 
-import com.example.socket.clink.net.qiujuer.clink.box.StringReceivePacket;
-import com.example.socket.clink.net.qiujuer.clink.core.IOArgs;
+import com.example.socket.clink.net.qiujuer.clink.core.IoArgs;
+import com.example.socket.clink.net.qiujuer.clink.core.Packet;
 import com.example.socket.clink.net.qiujuer.clink.core.ReceiveDispatcher;
 import com.example.socket.clink.net.qiujuer.clink.core.ReceivePacket;
 import com.example.socket.clink.net.qiujuer.clink.core.Receiver;
-import com.example.socket.clink.net.qiujuer.clink.core.SendDispatcher;
-import com.example.socket.clink.net.qiujuer.clink.core.SendPacket;
-import com.example.socket.clink.net.qiujuer.clink.core.Sender;
 import com.example.socket.clink.net.qiujuer.clink.utils.CloseUtils;
 
 import java.io.IOException;
-import java.util.Queue;
-import java.util.concurrent.ConcurrentLinkedQueue;
+import java.nio.channels.Channels;
+import java.nio.channels.WritableByteChannel;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class AsyncReceiveDispatcher implements ReceiveDispatcher {
+public class AsyncReceiveDispatcher implements ReceiveDispatcher,IoArgs.IOArgsEventProcessor {
     private final AtomicBoolean isClosed = new AtomicBoolean(false);
     private final Receiver receiver;
     private final ReceivePacketCallback callback;
 
-    private IOArgs ioArgs = new IOArgs();
-    private ReceivePacket packetTemp;   //正在接收的packet
-    private byte[] buffer;
-    private int total;
-    private int position;
+    private IoArgs ioArgs = new IoArgs();
+    private ReceivePacket<?,?> packetTemp;   //正在接收的packet
+    private WritableByteChannel packetChannel;
+    private long total;
+    private long position;
 
 
     /**
@@ -33,10 +30,9 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
      */
     public AsyncReceiveDispatcher(Receiver receiver,ReceivePacketCallback callback) {
         this.receiver = receiver;
-        this.receiver.setReceiveListener(eventListener);
+        this.receiver.setReceiveListener(this);
         this.callback = callback;
     }
-
 
 
     @Override
@@ -46,7 +42,7 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
 
     private void registerReceive(){
         try {
-            receiver.receiveAsync(ioArgs);
+            receiver.postReceiveAsync();
         }catch (IOException e){
             closeAndNotify();
         }
@@ -65,73 +61,81 @@ public class AsyncReceiveDispatcher implements ReceiveDispatcher {
     @Override
     public void close() {
         if(isClosed.compareAndSet(false,true)){
-            ReceivePacket packet = this.packetTemp;
-            if(packet!=null){
-                packetTemp = null;
-                CloseUtils.close(packet);
-            }
+            completePacket(false);
         }
     }
 
 
-    private IOArgs.IOArgsEventListener eventListener = new IOArgs.IOArgsEventListener() {
-        @Override
-        public void onStarted(IOArgs args) {
-            int receiveSize;   //每次可以接收数据的大小
-            if(packetTemp==null){
-                receiveSize = 4;
-            }else{
-                receiveSize = Math.min(total-position,args.capacity());
-            }
-            //设置本次接收数据大小
-            args.setLimit(receiveSize);
-
-        }
-        @Override
-        public void onCompleted(IOArgs args) {
-            //解析一条数据
-            assemblePacket(args);
-            //继续接收下一条数据
-            registerReceive();
-        }
-    };
-
-
     /**
      * 解析数据到packet
-     *
      */
-    private void assemblePacket(IOArgs args){
+    private void assemblePacket(IoArgs args){
         if(packetTemp == null){
             int length = args.readLength();
-            System.out.println("当前收到的数据长度为:"+length);
-            packetTemp = new StringReceivePacket(length);
-            buffer = new byte[length];
+            byte type = length>200? Packet.TYPE_STREAM_FILE:
+                    Packet.TYPE_MEOMORY_STRING;
+            packetTemp = callback.onArrivedNewPacket(type,length);
+            packetChannel = Channels.newChannel(packetTemp.open());
+
             total = length;
             position = 0;
         }
-        //将args中的数据写到buffer中
-        int count = args.writeTo(buffer,0);
-        if(count>0) {
-            //将buffer数据写到packetTemp中
-            packetTemp.save(buffer, count);
+        //将args中的数据写到通道中
+        try {
+            int count = args.writeTo(packetChannel);
             position += count;
 
             //检查是否已完成一份Packet接收
             if (position == total) {
-                completePacket();
-                packetTemp = null;
+                completePacket(true);
             }
+        } catch (IOException e) {
+            e.printStackTrace();
+            completePacket(false);
         }
     }
 
     /**
      * 完成数据接收操作
      */
-    private void completePacket(){
+    private void completePacket(boolean isSucceed){
         ReceivePacket packet = this.packetTemp;
         CloseUtils.close(packet);
-        callback.onReceivePacketCompleted(packet);
+        packetTemp = null;
+
+        WritableByteChannel channel = this.packetChannel;
+        CloseUtils.close(channel);
+        packetChannel = null;
+
+        if(packet!=null){
+            callback.onReceivePacketCompleted(packet);
+        }
     }
 
+    @Override
+    public IoArgs provideIoArgs() {
+        IoArgs args = ioArgs;
+        int receiveSize;   //每次可以接收数据的大小
+        if(packetTemp==null){
+            receiveSize = 4;
+        }else{
+            receiveSize = (int)Math.min(total-position,args.capacity());
+        }
+        //设置本次接收数据大小
+        args.setLimit(receiveSize);
+        return args;
+    }
+
+    @Override
+    public void onConsumeFailed(IoArgs args, Exception e) {
+        e.printStackTrace();
+    }
+
+    @Override
+    public void onConsumeCompleted(IoArgs args) {
+        //解析一条数据
+        assemblePacket(args);
+        //继续接收下一条数据
+        registerReceive();
+    }
 }

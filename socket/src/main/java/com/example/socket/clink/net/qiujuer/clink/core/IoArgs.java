@@ -2,26 +2,45 @@ package com.example.socket.clink.net.qiujuer.clink.core;
 
 import java.io.EOFException;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.channels.WritableByteChannel;
 
-public class IOArgs {
+/**
+ * 将IoArgs改为流的输入输出
+ */
+public class IoArgs {
     private int limit = 256;
-    private byte[] byteBuffer = new byte[256];
-    private ByteBuffer buffer = ByteBuffer.wrap(byteBuffer);
+    private ByteBuffer buffer = ByteBuffer.allocate(limit);
 
     //从bytes中读数据到 buffer
-    public int readFrom(byte[] bytes,int offset){
-        int size = Math.min(bytes.length-offset,buffer.remaining());
-        buffer.put(bytes,offset,size);
-        return size;
+    public int readFrom(ReadableByteChannel channel) throws IOException{
+        startWriting();
+        int bytesProduced = 0;
+        while(buffer.hasRemaining()){
+            int len = channel.read(buffer);
+            if(len<0){
+                throw new EOFException();
+            }
+            bytesProduced+=len;
+        }
+        finishWriting();
+        return bytesProduced;
     }
 
     //从 buffer 中写数据到bytes中
-    public int writeTo(byte[] bytes,int offset){
-        int size = Math.min(bytes.length-offset,buffer.remaining());
-        buffer.get(bytes,offset,size);
-        return size;
+    public int writeTo(WritableByteChannel channel) throws IOException{
+        int bytesProduced = 0;
+        while(buffer.hasRemaining()){
+            int len = channel.write(buffer);
+            if(len<0){
+                throw new EOFException();
+            }
+            bytesProduced+=len;
+        }
+        return bytesProduced;
     }
 
 
@@ -79,7 +98,9 @@ public class IOArgs {
 
 
     public void writeLength(int length){
+        startWriting();
         buffer.putInt(length);
+        finishWriting();
     }
 
     public int readLength(){
@@ -91,9 +112,13 @@ public class IOArgs {
     }
 
 
-    public interface IOArgsEventListener{
-        void onStarted(IOArgs args);
-        void onCompleted(IOArgs args);
+    /**
+     *  IoArgs提供者、处理者；数据的生产或消费者
+     */
+    public interface IOArgsEventProcessor{
+        IoArgs provideIoArgs();   //提供IoArgs
+        void onConsumeFailed(IoArgs args,Exception e);   //消费失败
+        void onConsumeCompleted(IoArgs args);    //消费成功
     }
 
 

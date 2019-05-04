@@ -1,7 +1,9 @@
 package com.example.socket.client;
 
 import com.example.socket.client.bean.DeviceInfo;
+import com.example.socket.clink.net.qiujuer.clink.utils.FileUtils;
 
+import java.io.File;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +12,8 @@ public class ClientPressureTest {
     private static boolean done;
 
     public static void main(String []args) throws IOException{
+        File cachePath = FileUtils.getCacheDir("client/test");
+
         //创建搜索者对象，并指定超时时间，如果在指定时间内没有设备响应，结束
         DeviceInfo info = UDPSearcher.searchServer(10000);
         System.out.println("Server:"+info);
@@ -21,7 +25,7 @@ public class ClientPressureTest {
         final List<TCPClient> tcpClientList = new ArrayList<>();
         for (int i=0;i<10;i++){
             try {
-                TCPClient tcpClient = TCPClient.startWith(info);
+                TCPClient tcpClient = TCPClient.startWith(info,cachePath);
                 if(tcpClient == null){
                         System.out.println("连接异常");
                         continue;

@@ -1,19 +1,21 @@
 package com.example.socket.clink.net.qiujuer.clink.core;
 
+import com.example.socket.clink.net.qiujuer.clink.box.BytesReceivePacket;
+import com.example.socket.clink.net.qiujuer.clink.box.FileReceivePacket;
 import com.example.socket.clink.net.qiujuer.clink.box.StringReceivePacket;
 import com.example.socket.clink.net.qiujuer.clink.box.StringSendPacket;
 import com.example.socket.clink.net.qiujuer.clink.impl.SocketChannelAdapter;
 import com.example.socket.clink.net.qiujuer.clink.impl.async.AsyncReceiveDispatcher;
 import com.example.socket.clink.net.qiujuer.clink.impl.async.AsyncSendDispatcher;
-
 import java.io.Closeable;
+import java.io.File;
 import java.io.IOException;
 import java.nio.channels.SocketChannel;
 import java.util.UUID;
 
-public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatusChangedListener {
+public abstract class Connector implements Closeable, SocketChannelAdapter.OnChannelStatusChangedListener {
 
-    private UUID key = UUID.randomUUID();
+    protected UUID key = UUID.randomUUID();
     private SocketChannel socketChannel;
     private Sender sender;
     private Receiver receiver;
@@ -23,7 +25,7 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     public void setup(SocketChannel socketChannel) throws IOException{
         this.socketChannel = socketChannel;
 
-        IOContext ioContext = IOContext.get();
+        IoContext ioContext = IoContext.get();
         SocketChannelAdapter adapter = new SocketChannelAdapter(socketChannel,
                 ioContext.getIoProvider(),this);
         this.sender = adapter;
@@ -38,6 +40,10 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
 
     public void send(String msg){
         SendPacket packet = new StringSendPacket(msg);
+        sendDispatcher.send(packet);
+    }
+
+    public void send(SendPacket packet){
         sendDispatcher.send(packet);
     }
 
@@ -62,6 +68,18 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
     }
 
 
+    protected void onReceivedPacket(ReceivePacket packet){
+        System.out.println(key.toString()+":[New Packet]-Type:"+packet.type()
+                +", Length:"+packet.length);
+    }
+
+
+    /**
+     * 创建一个临时的接收文件
+     * @return
+     */
+    protected abstract File createNewReceiveFile();
+
     /**
      * 接收消息完成回调
      */
@@ -69,9 +87,22 @@ public class Connector implements Closeable, SocketChannelAdapter.OnChannelStatu
             new ReceiveDispatcher.ReceivePacketCallback() {
         @Override
         public void onReceivePacketCompleted(ReceivePacket packet) {
-            if(packet instanceof StringReceivePacket){
-                String msg = ((StringReceivePacket)packet).string();
-                onReceiveNewMessage(msg);
+            onReceivedPacket(packet);
+        }
+
+        @Override
+        public ReceivePacket<?, ?> onArrivedNewPacket(byte type, long length) {
+            switch (type){
+                case Packet.TYPE_MEMORY_BYTES:
+                    return new BytesReceivePacket(length);
+                case Packet.TYPE_MEOMORY_STRING:
+                    return new StringReceivePacket(length);
+                case Packet.TYPE_STREAM_FILE:
+                    return new FileReceivePacket(length,createNewReceiveFile());
+                case Packet.TYPE_STREAM_DIRECT:
+                    return new BytesReceivePacket(length);
+                default:
+                    throw new UnsupportedOperationException("Unsupported type:"+type);
             }
         }
     };

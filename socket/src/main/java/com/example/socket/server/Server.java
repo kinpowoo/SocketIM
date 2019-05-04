@@ -1,22 +1,25 @@
 package com.example.socket.server;
 
-import com.example.socket.clink.net.qiujuer.clink.core.IOContext;
+import com.example.socket.clink.net.qiujuer.clink.core.IoContext;
 import com.example.socket.clink.net.qiujuer.clink.impl.IoSelectorProvider;
+import com.example.socket.clink.net.qiujuer.clink.utils.FileUtils;
 import com.example.socket.constants.TCPConstants;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 
 public class Server {
 
     public static void main(String[] args) throws IOException {
-        IOContext.setup()
+        File cachePath = FileUtils.getCacheDir("server");
+        IoContext.setup()
                 .ioProvider(new IoSelectorProvider())
                 .start();
 
         //启动TCP Server
-        TCPServer tcpServer = new TCPServer(TCPConstants.PORT_SERVER);
+        TCPServer tcpServer = new TCPServer(TCPConstants.PORT_SERVER,cachePath);
         boolean isSucceed = tcpServer.start();
         if(!isSucceed){
             System.out.println("Start TCP Server failed!");
@@ -32,15 +35,20 @@ public class Server {
         String str;
         do{
             str = bufferedReader.readLine();
+            if(str.equalsIgnoreCase("00bye00")){
+                break;
+            }
+
+            //直接发送字符串
             tcpServer.broadcast(str);
             System.out.print(">>:");
-        }while (!str.equalsIgnoreCase("00bye00"));
+        }while (true);
 
         UDPProvider.stop();
         //关闭tcp
         tcpServer.stop();
 
-        IOContext.get().close();
+        IoContext.get().close();
     }
 
 }
