@@ -95,7 +95,7 @@ public abstract class Connector implements Closeable, SocketChannelAdapter.OnCha
             switch (type){
                 case Packet.TYPE_MEMORY_BYTES:
                     return new BytesReceivePacket(length);
-                case Packet.TYPE_MEOMORY_STRING:
+                case Packet.TYPE_MEMORY_STRING:
                     return new StringReceivePacket(length);
                 case Packet.TYPE_STREAM_FILE:
                     return new FileReceivePacket(length,createNewReceiveFile());

@@ -61,7 +61,7 @@ public class TCPClient extends Connector {
     @Override
     protected void onReceivedPacket(ReceivePacket packet) {
         super.onReceivedPacket(packet);
-        if(packet.type() == Packet.TYPE_MEOMORY_STRING){
+        if(packet.type() == Packet.TYPE_MEMORY_STRING){
             String string = (String) packet.entity();
             System.out.println(key.toString()+":"+string);
         }

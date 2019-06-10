@@ -15,9 +15,25 @@ public class IoArgs {
     private int limit = 256;
     private ByteBuffer buffer = ByteBuffer.allocate(limit);
 
-    //从bytes中读数据到 buffer
+    //从bytes[]数组中读数据到 buffer
+    public int readFrom(byte[] bytes,int offset,int count){
+        int size = Math.min(count,buffer.remaining());
+        if(size<=0){
+            return 0;
+        }
+        buffer.put(bytes,offset,size);
+        return size;
+    }
+
+    //从buffer中读数据到 bytes[] 数组
+    public int writeTo(byte[] bytes,int offset){
+        int size = Math.min(bytes.length-offset,buffer.remaining());
+        buffer.get(bytes,offset,size);
+        return size;
+    }
+
+    //从channel中读数据到 buffer
     public int readFrom(ReadableByteChannel channel) throws IOException{
-        startWriting();
         int bytesProduced = 0;
         while(buffer.hasRemaining()){
             int len = channel.read(buffer);
@@ -26,11 +42,10 @@ public class IoArgs {
             }
             bytesProduced+=len;
         }
-        finishWriting();
         return bytesProduced;
     }
 
-    //从 buffer 中写数据到bytes中
+    //从 buffer 中写数据到 channel 中
     public int writeTo(WritableByteChannel channel) throws IOException{
         int bytesProduced = 0;
         while(buffer.hasRemaining()){
@@ -51,7 +66,6 @@ public class IoArgs {
      * @throws IOException
      */
     public int readFrom(SocketChannel channel) throws IOException {
-        startWriting();
         int bytesProduced = 0;
         while(buffer.hasRemaining()){
             int len = channel.read(buffer);
@@ -60,7 +74,6 @@ public class IoArgs {
             }
             bytesProduced+=len;
         }
-        finishWriting();
         return bytesProduced;
     }
 
@@ -93,14 +106,7 @@ public class IoArgs {
      * 设置单次写操作的容纳区间
      */
     public void setLimit(int limit){
-        this.limit = limit;
-    }
-
-
-    public void writeLength(int length){
-        startWriting();
-        buffer.putInt(length);
-        finishWriting();
+        this.limit = Math.min(limit,buffer.capacity());
     }
 
     public int readLength(){
@@ -109,6 +115,32 @@ public class IoArgs {
 
     public int capacity(){
         return buffer.capacity();
+    }
+
+    public boolean remained() {
+        return buffer.remaining() > 0;
+    }
+
+    /**
+     * 填充空数据
+     * @param bodyRemaining
+     * @return
+     */
+    public int fillEmpty(int bodyRemaining) {
+        int fillSize = Math.min(bodyRemaining,buffer.remaining());
+        buffer.position(buffer.position() + fillSize);   //只移动buffer的位置
+        return fillSize;
+    }
+
+    /**
+     * 清空一部分数据，不读取一部分数据
+     * @param bodyRemaining
+     * @return
+     */
+    public int setEmpty(int bodyRemaining) {
+        int emptySize = Math.min(bodyRemaining,buffer.remaining());
+        buffer.position(buffer.position() + emptySize);   //只移动buffer的位置
+        return emptySize;
     }
 
 

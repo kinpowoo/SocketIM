@@ -13,7 +13,7 @@ public abstract class Packet<Stream extends Closeable> implements Closeable {
     //bytes类型，可以直接存储在内存中
     public static final byte TYPE_MEMORY_BYTES  = 1;
     //String类型，可以直接存储在内存中
-    public static final byte TYPE_MEOMORY_STRING = 2;
+    public static final byte TYPE_MEMORY_STRING = 2;
     //文件类型，无法直接存储在内存中，因为体积过大，只能以流的形式读取
     public static final byte TYPE_STREAM_FILE = 3;
     //长链接流 类型
@@ -63,6 +63,13 @@ public abstract class Packet<Stream extends Closeable> implements Closeable {
     }
 
 
+    /**
+     * 头部额外信息，用于携带额外的校验信息等
+     * return byte 数组，最大255长度
+     */
+    public byte[] headerInfo(){
+        return null;
+    }
 
 
 }

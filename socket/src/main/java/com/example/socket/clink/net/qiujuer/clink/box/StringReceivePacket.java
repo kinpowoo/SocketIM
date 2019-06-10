@@ -15,6 +15,6 @@ public class StringReceivePacket extends AbsByteArrayReceivePacket<String> {
 
     @Override
     public byte type() {
-        return TYPE_MEOMORY_STRING;
+        return TYPE_MEMORY_STRING;
     }
 }

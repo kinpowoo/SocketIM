@@ -145,7 +145,7 @@ public class IoSelectorProvider implements IoProvider {
     }
 
     @Override
-    public void close() throws IOException {
+    public void close(){
         if(isClosed.compareAndSet(false,true)){
             //停掉线程池
             inputHandPool.shutdown();

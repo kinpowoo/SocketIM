@@ -77,7 +77,7 @@ public class TCPServer implements ClientHandle.ClientHandleCallback {
         forwardThreadPool.shutdownNow();
     }
 
-    public synchronized void broadcast(String str){
+     synchronized void broadcast(String str){
         //给所有相连的客户端都发送一条消息
         for (ClientHandle clientHandle:clients){
             clientHandle.send(str);
